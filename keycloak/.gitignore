@@ -1,0 +1,52 @@
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Datos sensibles
+*.key
+*.pem
+*.crt
+*.p12
+*.jks
+*.keystore
+secrets/
+
+# Backups
+backups/
+*.sql
+*.sql.gz
+*.dump
+
+# Logs
+logs/
+*.log
+
+# Certificados
+certs/
+nginx/certs/*.pem
+nginx/certs/*.key
+
+# Docker
+.docker/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Providers compilados (mantener solo fuentes)
+providers/*.jar
+
+# Temporales
+tmp/
+temp/
+.cache/
+
+# Node modules (si tienes temas con frontend)
+node_modules/
+package-lock.json
+yarn.lock

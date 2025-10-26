@@ -21,12 +21,12 @@ scrape_configs:
           environment: 'production'
 
   # Job para PostgreSQL metrics (requiere postgres_exporter)
-  # - job_name: 'postgres'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
-  #       labels:
-  #         service: 'postgresql'
-  #         environment: 'development'
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['keycloak-postgres-exporter:9187']
+        labels:
+          service: 'postgresql'
+          environment: 'production'
 
   # Job para Prometheus self-monitoring
   - job_name: 'prometheus'

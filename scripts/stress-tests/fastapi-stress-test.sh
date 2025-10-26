@@ -4,8 +4,6 @@
 # Tests protected and public endpoints
 # Uses Docker containers - no local installation required
 
-set -e
-
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -14,11 +12,11 @@ NC='\033[0m'
 
 # Configuration
 FASTAPI_URL="${FASTAPI_URL:-http://host.docker.internal:8000}"
-KEYCLOAK_URL="${KEYCLOAK_URL:-https://host.docker.internal:8443}"
+KEYCLOAK_URL="${KEYCLOAK_URL:-https://localhost:8443}"
 REALM="${REALM:-demo-app}"
 CLIENT_ID="${CLIENT_ID:-demo-app-frontend}"
-USERNAME="${USERNAME:-demo-user}"
-PASSWORD="${PASSWORD:-Demo@User123}"
+KEYCLOAK_USERNAME="${KEYCLOAK_USERNAME:-demo-user}"
+KEYCLOAK_PASSWORD="${KEYCLOAK_PASSWORD:-DemoUser123}"
 CONCURRENT_USERS="${CONCURRENT_USERS:-10}"
 REQUESTS_PER_USER="${REQUESTS_PER_USER:-100}"
 
@@ -74,23 +72,48 @@ run_ab_docker() {
 
 # Get access token using curl Docker image
 echo -e "${YELLOW}Obtaining access token...${NC}"
-TOKEN=$(docker run --rm --network host \
+
+# Debug: show what we're sending
+if [ -n "$DEBUG" ]; then
+    echo "DEBUG: URL=$KEYCLOAK_URL/realms/$REALM/protocol/openid-connect/token"
+    echo "DEBUG: KEYCLOAK_USERNAME=$KEYCLOAK_USERNAME"
+    echo "DEBUG: KEYCLOAK_PASSWORD=$KEYCLOAK_PASSWORD"
+    echo "DEBUG: CLIENT_ID=$CLIENT_ID"
+fi
+
+TOKEN_RESPONSE=$(docker run --rm --network host \
     --add-host host.docker.internal:host-gateway \
     curlimages/curl:latest \
     -k -s -X POST "$KEYCLOAK_URL/realms/$REALM/protocol/openid-connect/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
-    -d "username=$USERNAME" \
-    -d "password=$PASSWORD" \
+    -d "username=$KEYCLOAK_USERNAME" \
+    -d "password=$KEYCLOAK_PASSWORD" \
     -d "grant_type=password" \
-    -d "client_id=$CLIENT_ID" \
-    | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4 2>/dev/null || echo "")
+    -d "client_id=$CLIENT_ID")S
+
+# Extract token using grep and sed (more robust parsing)
+TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*' | sed 's/"access_token":"//')
+[ -z "$TOKEN" ] && TOKEN=""
 
 if [ -z "$TOKEN" ]; then
     echo -e "${RED}Failed to obtain access token${NC}"
+    # Debug: show error details if available
+    ERROR_MSG=$(echo "$TOKEN_RESPONSE" | grep -o '"error_description":"[^"]*' | sed 's/"error_description":"//' 2>/dev/null)
+    if [ -n "$ERROR_MSG" ]; then
+        echo -e "${RED}Error: $ERROR_MSG${NC}"
+    elif [ ${#TOKEN_RESPONSE} -gt 100 ]; then
+        echo -e "${YELLOW}Response received but token extraction may have failed${NC}"
+        echo -e "${YELLOW}Response length: ${#TOKEN_RESPONSE} bytes${NC}"
+        echo -e "${YELLOW}First 150 chars: ${TOKEN_RESPONSE:0:150}${NC}"
+    elif [ -n "$TOKEN_RESPONSE" ]; then
+        echo -e "${YELLOW}Short response received: $TOKEN_RESPONSE${NC}"
+    else
+        echo -e "${RED}No response from Keycloak server${NC}"
+    fi
     echo -e "${YELLOW}Continuing with public endpoint tests only...${NC}"
     TOKEN=""
 else
-    echo -e "${GREEN}✅ Access token obtained${NC}"
+    echo -e "${GREEN}✅ Access token obtained (${#TOKEN} bytes)${NC}"
 fi
 echo ""
 

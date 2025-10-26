@@ -50,3 +50,6 @@ temp/
 node_modules/
 package-lock.json
 yarn.lock
+
+# Stress Tests
+stress-test-results

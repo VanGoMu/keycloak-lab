@@ -38,12 +38,25 @@ Complete Docker-based Keycloak deployment for Identity & Access Management with 
 
 ## Quick Start
 
+### Development Mode
+
 ```bash
 cd keycloak
-./start.sh
+./start-dev.sh
 ```
 
 **Admin Console**: http://localhost:8080/admin (admin/admin)
+
+### Production Mode
+
+```bash
+cd keycloak
+./start-prod.sh
+```
+
+**Admin Console**: https://localhost:8443/admin (admin/admin)
+
+⚠️ Accept the self-signed certificate warning in your browser.
 
 ## Architecture
 
@@ -205,10 +218,10 @@ docker compose logs -f keycloak-dev
 # Restart
 docker compose restart keycloak-dev
 
-# Backup
+# Backup (Prod only)
 ./backup.sh
 
-# Restore
+# Restore (Prod only)
 ./restore.sh <timestamp>
 
 # Health check
@@ -222,7 +235,7 @@ curl http://localhost:9000/metrics
 
 Enable Prometheus + Grafana:
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose -f docker/docker-compose.prod.yml -f monitoring/docker-compose.yml up -d
 ```
 
 Access:

@@ -117,32 +117,32 @@ curl http://localhost:9000/health
 ./scripts/dev/start.sh
 
 # View logs
-docker compose -f docker-compose.dev.yml logs -f keycloak-dev
+cd docker && docker compose -f docker-compose.dev.yml logs -f keycloak-dev
 
 # Stop
-docker compose -f docker-compose.dev.yml down
+cd docker && docker compose -f docker-compose.dev.yml down
 
 # Restart
-docker compose -f docker-compose.dev.yml restart keycloak-dev
+cd docker && docker compose -f docker-compose.dev.yml restart keycloak-dev
 ```
 
 ### Production Mode
 
 ```bash
-# Generate certificates
-./scripts/prod/generate-certs.sh
-
 # Start
 ./scripts/prod/start.sh
 
 # View logs
-docker compose -f docker-compose.prod.yml logs -f keycloak-prod
+cd docker && docker compose -f docker-compose.prod.yml logs -f keycloak-prod
 
 # Stop
-docker compose -f docker-compose.prod.yml down
+cd docker && docker compose -f docker-compose.prod.yml down
 
 # Test
 ./scripts/prod/test.sh
+
+# Generate certificates
+./scripts/prod/generate-certs.sh
 ```
 
 ---
@@ -159,7 +159,7 @@ docker compose -f docker-compose.prod.yml down
 | FastAPI | http://localhost:8000 | - |
 | FastAPI Docs | http://localhost:8000/docs | - |
 | Mailhog UI | http://localhost:8025 | - |
-| Adminer | http://localhost:8081 | See .env |
+| Adminer | http://localhost:8081 | See docker/.env |
 
 ### Production Mode
 
@@ -316,7 +316,7 @@ cd fast-api-app
 
 ### Production Recommendations
 - Use HTTPS with valid certificates
-- Change all default passwords
+- Change all default passwords in `docker/.env`
 - Configure proper hostnames
 - Enable strict security policies
 - Set up backup automation
@@ -333,12 +333,13 @@ cd fast-api-app
 **Solutions:**
 ```bash
 # Check logs
-docker compose -f docker-compose.dev.yml logs keycloak-dev
+cd docker && docker compose -f docker-compose.dev.yml logs keycloak-dev
 
 # Verify PostgreSQL is healthy
-docker compose -f docker-compose.dev.yml ps postgres
+cd docker && docker compose -f docker-compose.dev.yml ps postgres
 
 # Reset (⚠️ DELETES DATA)
+cd docker
 docker compose -f docker-compose.dev.yml down -v
 docker compose -f docker-compose.dev.yml up -d
 ```
@@ -348,9 +349,10 @@ docker compose -f docker-compose.dev.yml up -d
 **Solutions:**
 ```bash
 # Verify credentials in .env
-cat .env | grep KC_ADMIN
+cat docker/.env | grep KC_ADMIN
 
 # Reset containers
+cd docker
 docker compose -f docker-compose.dev.yml down -v
 docker compose -f docker-compose.dev.yml up -d
 ```
@@ -362,7 +364,7 @@ docker compose -f docker-compose.dev.yml up -d
 # Find process using port
 sudo lsof -i :8080
 
-# Kill process or change port in docker-compose file
+# Kill process or change port in docker/docker-compose.*.yml
 ```
 
 ### Still having issues?
@@ -392,7 +394,7 @@ sudo lsof -i :8080
 
 4. **Production Ready**
    - Generate valid SSL certificates
-   - Change default passwords
+   - Change default passwords in `docker/.env`
    - Set up monitoring
    - Configure backups
 

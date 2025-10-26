@@ -10,12 +10,15 @@ global:
 scrape_configs:
   # Job para Keycloak metrics
   - job_name: 'keycloak'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['keycloak-dev:9000']
+      - targets: ['keycloak-prod:9000']
         labels:
           service: 'keycloak'
-          environment: 'development'
+          environment: 'production'
 
   # Job para PostgreSQL metrics (requiere postgres_exporter)
   # - job_name: 'postgres'

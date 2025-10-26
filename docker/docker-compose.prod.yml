@@ -1,0 +1,135 @@
+services:
+  # PostgreSQL Database
+  keycloak-postgres:
+    image: postgres:16-alpine
+    container_name: keycloak-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - keycloak-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak optimizado para producción
+  keycloak-prod:
+    build:
+      context: ../keycloak/keycloak-custom
+      dockerfile: Dockerfile
+    image: keycloak-prod:latest
+    container_name: keycloak-prod
+    restart: unless-stopped
+    command: start --optimized --import-realm
+    environment:
+      # Admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      
+      # Database
+      KC_DB: ${KC_DB_TYPE}
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/${POSTGRES_DB}
+      KC_DB_USERNAME: ${KC_DB_USER}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      
+      # Hostname (v2 - sin strict options obsoletas)
+      KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
+      
+      # Proxy configuration (v2 - sin proxy-headers obsoleto)
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: false
+      
+      # SSL/TLS
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/server.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/server.key
+      
+      # Performance
+      KC_DB_POOL_INITIAL_SIZE: 10
+      KC_DB_POOL_MIN_SIZE: 10
+      KC_DB_POOL_MAX_SIZE: 50
+      
+      # Logging
+      KC_LOG_LEVEL: INFO
+      KC_LOG_CONSOLE_OUTPUT: json
+      
+      # Health & Metrics
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+      
+      # Cache
+      KC_CACHE: ispn
+      KC_CACHE_STACK: tcp
+      
+      # JVM Options
+      JAVA_OPTS_KC_HEAP: "-Xms2g -Xmx4g"
+      JAVA_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+      
+    ports:
+      - "8443:8443"   # HTTPS
+      - "9000:9000"   # Metrics & Health
+      
+    volumes:
+      # SSL Certificates
+      - ../nginx/certs/server.crt:/opt/keycloak/conf/server.crt:ro
+      - ../nginx/certs/server.key:/opt/keycloak/conf/server.key:ro
+      # Realms
+      - ../keycloak/realms:/opt/keycloak/data/import:ro
+      # Providers
+      - ../keycloak/providers:/opt/keycloak/providers:ro
+      # Themes
+      - ../keycloak/themes:/opt/keycloak/themes:ro
+      
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+        
+    networks:
+      - keycloak-network
+      
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8443 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # FastAPI ajustado para producción
+  fastapi-app:
+    build:
+      context: ../fast-api-app
+      dockerfile: Dockerfile
+    container_name: keycloak-fastapi-demo
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      KEYCLOAK_URL: https://keycloak-prod:8443
+      KEYCLOAK_REALM: demo-app
+      KEYCLOAK_CLIENT_ID: demo-app-frontend
+      KEYCLOAK_CLIENT_SECRET: ""
+      # Deshabilitar verificación SSL para certificados auto-firmados (solo desarrollo)
+      # En producción, usar certificados válidos
+      REQUESTS_CA_BUNDLE: /app/certs/server.crt
+    volumes:
+      - ../nginx/certs/server.crt:/app/certs/server.crt:ro
+    networks:
+      - keycloak-network
+    depends_on:
+      keycloak-prod:
+        condition: service_healthy
+
+# Volumes
+volumes:
+  postgres-data:
+    driver: local
+
+# Networks
+networks:
+  keycloak-network:
+    driver: bridge

@@ -4,7 +4,7 @@ FROM quay.io/keycloak/keycloak:26.0.7 AS builder
 ENV KC_HEALTH_ENABLED=true
 ENV KC_METRICS_ENABLED=true
 ENV KC_DB=postgres
-ENV KC_FEATURES=token-exchange,admin-fine-grained-authz,declarative-user-profile
+ENV KC_FEATURES=token-exchange,admin-fine-grained-authz
 
 # Copiar providers personalizados (si existen)
 # COPY providers/*.jar /opt/keycloak/providers/
@@ -38,8 +38,6 @@ COPY --from=builder /opt/keycloak/ /opt/keycloak/
 # Estas se pueden sobrescribir en docker compose o k8s
 ENV KC_DB=postgres
 ENV KC_HOSTNAME=localhost
-ENV KC_HOSTNAME_STRICT=false
-ENV KC_PROXY=edge
 ENV KC_HTTP_ENABLED=true
 
 # Metadata

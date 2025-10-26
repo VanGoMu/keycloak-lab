@@ -11,6 +11,19 @@ echo ""
 
 API_URL="http://localhost:8000"
 
+# Load environment variables from docker/.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/../docker/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+else
+    echo "⚠️  Warning: docker/.env not found, using default values"
+fi
+
+DEMO_USER_PASSWORD="${DEMO_USER_PASSWORD:-password}"
+ADMIN_USER_PASSWORD="${ADMIN_USER_PASSWORD:-Admin@User123}"
+
 # Colores
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -44,7 +57,7 @@ echo ""
 echo "2️⃣  Login como demo-user..."
 LOGIN_RESPONSE=$(curl -s -X POST $API_URL/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "demo-user", "password": "Demo@User123"}')
+  -d "{\"username\": \"demo-user\", \"password\": \"${DEMO_USER_PASSWORD}\"}")
 
 USER_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.access_token')
 if [ "$USER_TOKEN" != "null" ] && [ -n "$USER_TOKEN" ]; then
@@ -87,7 +100,7 @@ echo ""
 echo "5️⃣  Login como admin-user..."
 ADMIN_LOGIN=$(curl -s -X POST $API_URL/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin-user", "password": "Admin@User123"}')
+  -d "{\"username\": \"admin-user\", \"password\": \"${ADMIN_USER_PASSWORD}\"}")
 
 ADMIN_TOKEN=$(echo $ADMIN_LOGIN | jq -r '.access_token')
 if [ "$ADMIN_TOKEN" != "null" ] && [ -n "$ADMIN_TOKEN" ]; then
@@ -95,6 +108,7 @@ if [ "$ADMIN_TOKEN" != "null" ] && [ -n "$ADMIN_TOKEN" ]; then
 else
     print_error "Login admin falló"
     exit 1
+fi
 fi
 echo ""
 

@@ -3,10 +3,14 @@
 # Script de backup para Keycloak
 # Realiza backup de la base de datos PostgreSQL y la configuración
 
-set -e
+# set -e
+
+# Directorio base del script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Configuración
-BACKUP_DIR="./backups"
+BACKUP_DIR="${PROJECT_ROOT}/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 DB_BACKUP_FILE="${BACKUP_DIR}/keycloak_db_${DATE}.sql"
 REALM_BACKUP_DIR="${BACKUP_DIR}/realms_${DATE}"
@@ -14,7 +18,22 @@ REALM_BACKUP_DIR="${BACKUP_DIR}/realms_${DATE}"
 # Colores
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
+
+# Detectar entorno (prod o dev)
+if docker ps | grep -q "keycloak-prod"; then
+    KEYCLOAK_CONTAINER="keycloak-prod"
+    POSTGRES_CONTAINER="keycloak-postgres"
+elif docker ps | grep -q "keycloak-dev"; then
+    KEYCLOAK_CONTAINER="keycloak-dev"
+    POSTGRES_CONTAINER="keycloak-postgres"
+else
+    echo -e "${RED}❌ No se encuentra ningún contenedor de Keycloak en ejecución${NC}"
+    exit 1
+fi
+
+echo -e "${YELLOW}📍 Usando contenedor: $KEYCLOAK_CONTAINER${NC}"
 
 echo -e "${YELLOW}🔄 Iniciando backup de Keycloak...${NC}"
 
@@ -24,7 +43,7 @@ mkdir -p "$REALM_BACKUP_DIR"
 
 # 1. Backup de PostgreSQL
 echo -e "${YELLOW}📦 Haciendo backup de la base de datos PostgreSQL...${NC}"
-docker exec keycloak-postgres pg_dump -U keycloak keycloak > "$DB_BACKUP_FILE"
+docker exec $POSTGRES_CONTAINER pg_dump -U keycloak keycloak > "$DB_BACKUP_FILE"
 
 if [ -f "$DB_BACKUP_FILE" ]; then
     echo -e "${GREEN}✅ Backup de base de datos guardado en: $DB_BACKUP_FILE${NC}"
@@ -37,32 +56,43 @@ else
 fi
 
 # 2. Exportar realms desde Keycloak
-echo -e "${YELLOW}📦 Exportando realms de Keycloak...${NC}"
+echo -e "${YELLOW}📦 Exportando configuración de realms...${NC}"
 
-# Obtener lista de realms (excepto master)
-REALMS=$(docker exec keycloak-dev /opt/keycloak/bin/kcadm.sh get realms \
-    --server http://localhost:8080 \
-    --realm master \
-    --user keycloak_admin \
-    --password keycloak@pass123StrNG \
-    --format csv \
-    --fields realm 2>/dev/null | tail -n +2 | grep -v "^master$" || echo "")
+# Load environment variables from docker/.env
+if [ -f "${PROJECT_ROOT}/docker/.env" ]; then
+    source "${PROJECT_ROOT}/docker/.env"
+fi
 
-if [ -n "$REALMS" ]; then
-    for realm in $REALMS; do
-        echo -e "${YELLOW}  Exportando realm: $realm${NC}"
-        docker exec keycloak-dev /opt/keycloak/bin/kc.sh export \
-            --dir /tmp/export \
-            --realm "$realm" \
-            --users realm_file 2>/dev/null || true
-        
-        # Copiar desde el contenedor
-        docker cp "keycloak-dev:/tmp/export/${realm}-realm.json" \
-            "${REALM_BACKUP_DIR}/${realm}-realm.json" 2>/dev/null || true
-    done
-    echo -e "${GREEN}✅ Realms exportados en: $REALM_BACKUP_DIR${NC}"
+# Set credentials from environment or use defaults
+KC_ADMIN_USERNAME="${KC_ADMIN_USERNAME:-admin}"
+KC_ADMIN_PASSWORD="${KC_ADMIN_PASSWORD:-admin}"
+
+# Obtener token de admin
+ADMIN_TOKEN=$(curl -k -s -X POST "https://localhost:8443/realms/master/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=admin-cli" \
+  -d "username=${KC_ADMIN_USERNAME}" \
+  -d "password=${KC_ADMIN_PASSWORD}" \
+  -d "grant_type=password" | jq -r '.access_token' 2>/dev/null || echo "")
+
+if [ -n "$ADMIN_TOKEN" ] && [ "$ADMIN_TOKEN" != "null" ]; then
+    # Obtener lista de realms
+    REALMS=$(curl -k -s "https://localhost:8443/admin/realms" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[].realm' 2>/dev/null | grep -v "^master$" || echo "")
+    
+    if [ -n "$REALMS" ]; then
+        for realm in $REALMS; do
+            echo -e "${YELLOW}  Exportando realm: $realm${NC}"
+            REALM_DATA=$(curl -k -s "https://localhost:8443/admin/realms/$realm" \
+                -H "Authorization: Bearer $ADMIN_TOKEN")
+            echo "$REALM_DATA" > "${REALM_BACKUP_DIR}/${realm}-realm.json"
+        done
+        echo -e "${GREEN}✅ Realms exportados en: $REALM_BACKUP_DIR${NC}"
+    else
+        echo -e "${YELLOW}⚠️  No se encontraron realms adicionales para exportar${NC}"
+    fi
 else
-    echo -e "${YELLOW}⚠️  No se encontraron realms adicionales para exportar${NC}"
+    echo -e "${YELLOW}⚠️  No se pudo obtener token de admin, saltando export de realms${NC}"
 fi
 
 # 3. Backup de volúmenes (opcional)
@@ -78,10 +108,10 @@ Host: $(hostname)
 Usuario: $(whoami)
 
 Contenedores activos:
-$(docker compose ps)
+$(docker ps --filter "name=keycloak" --format "table {{.Names}}\t{{.Status}}")
 
 Versión de Keycloak:
-$(docker exec keycloak-dev /opt/keycloak/bin/kc.sh --version 2>/dev/null || echo "N/A")
+$(docker exec $KEYCLOAK_CONTAINER /opt/keycloak/bin/kc.sh --version 2>/dev/null || echo "N/A")
 
 Archivos incluidos:
 - Base de datos: keycloak_db_${DATE}.sql.gz

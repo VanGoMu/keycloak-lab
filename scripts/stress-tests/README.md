@@ -48,15 +48,18 @@ This will display an interactive menu:
 All variables are optional. Default values are configured for the local environment:
 
 ```bash
+# Load credentials from .env
+source docker/.env
+
 # URLs (use host.docker.internal for Docker-to-host communication)
 export KEYCLOAK_URL="https://host.docker.internal:8443"
 export FASTAPI_URL="http://host.docker.internal:8000"
 
-# Keycloak Credentials
+# Keycloak Credentials (from docker/.env)
 export REALM="demo-app"
 export CLIENT_ID="demo-app-frontend"
 export USERNAME="demo-user"
-export PASSWORD="Demo@User123"
+export PASSWORD="${DEMO_USER_PASSWORD}"
 
 # Load Configuration
 export CONCURRENT_USERS="10"

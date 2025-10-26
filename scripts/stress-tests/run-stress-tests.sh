@@ -20,6 +20,14 @@ echo -e "${BLUE}║          Complete System Stress Test Suite               ║
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
+# Load environment variables from docker/.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/../../docker/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+fi
+
 # Configuration
 export CONCURRENT_USERS="${CONCURRENT_USERS:-10}"
 export REQUESTS_PER_USER="${REQUESTS_PER_USER:-100}"
@@ -27,8 +35,6 @@ export KEYCLOAK_URL="${KEYCLOAK_URL:-https://host.docker.internal:8443}"
 export FASTAPI_URL="${FASTAPI_URL:-http://host.docker.internal:8000}"
 export REALM="${REALM:-demo-app}"
 export CLIENT_ID="${CLIENT_ID:-demo-app-frontend}"
-export USERNAME="${USERNAME:-demo-user}"
-export PASSWORD="${PASSWORD:-Demo@User123}"
 
 echo -e "${YELLOW}Test Configuration:${NC}"
 echo "  Concurrent Users: $CONCURRENT_USERS"

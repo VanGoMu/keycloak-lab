@@ -178,10 +178,12 @@ docker compose -f docker-compose.prod.yml down
 
 ### Test Users
 
+> **Note:** Passwords are configured in `docker/.env`. Default values shown below.
+
 | Username | Password | Roles | Use Case |
 |----------|----------|-------|----------|
-| `demo-user` | `Demo@User123` | `user` | Standard user access |
-| `admin-user` | `Admin@User123` | `admin`, `user` | Admin privileges |
+| `demo-user` | Ver `DEMO_USER_PASSWORD` en `docker/.env` | `user` | Standard user access |
+| `admin-user` | Ver `ADMIN_USER_PASSWORD` en `docker/.env` | `admin`, `user` | Admin privileges |
 
 ### Pre-configured Clients
 
@@ -192,10 +194,13 @@ docker compose -f docker-compose.prod.yml down
 ### Quick Test
 
 ```bash
+# Load credentials from environment
+source docker/.env
+
 # Get token for demo-user
 curl -X POST http://localhost:8000/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "demo-user", "password": "Demo@User123"}'
+  -d "{\"username\": \"demo-user\", \"password\": \"${DEMO_USER_PASSWORD}\"}"
 ```
 
 ---

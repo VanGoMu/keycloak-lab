@@ -13,6 +13,12 @@ NC='\033[0m'
 # Navigate to root
 cd "$(dirname "$0")/../.."
 
+# Load environment variables from docker/.env
+if [ -f "docker/.env" ]; then
+    source docker/.env
+fi
+DEMO_USER_PASSWORD="${DEMO_USER_PASSWORD:-password}"
+
 echo -e "${BLUE}🧪 Testing Keycloak Production Configuration${NC}"
 echo "================================================"
 echo ""
@@ -64,8 +70,8 @@ echo ""
 echo -e "${YELLOW}4️⃣  Authentication Flow${NC}"
 TOKEN=$(curl -k -s -X POST "https://localhost:8443/realms/demo-app/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=demo-user" \
-  -d "password=Demo@User123" \
+  -d "username=${DEMO_USER_NAME}" \
+  -d "password=${DEMO_USER_PASSWORD}" \
   -d "grant_type=password" \
   -d "client_id=demo-app-frontend" \
   | jq -r '.access_token' 2>/dev/null || echo "")
@@ -75,6 +81,8 @@ if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
     ((PASSED++))
 else
     echo -e "Testing: Token acquisition... ${RED}❌ FAILED${NC}"
+    echo -e "Execute command manually to create dummy user:"
+    echo -e "  > scripts/stress-tests/create-demo-user.sh"
     ((FAILED++))
 fi
 echo ""

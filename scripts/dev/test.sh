@@ -13,6 +13,15 @@ NC='\033[0m'
 # Navigate to root
 cd "$(dirname "$0")/../.."
 
+# Load environment variables from docker/.env
+if [ -f "docker/.env" ]; then
+    source docker/.env
+fi
+DEMO_USER_NAME="${DEMO_USER_NAME:-user}"
+DEMO_USER_PASSWORD="${DEMO_USER_PASSWORD:-password}"
+ADMIN_USER_NAME="${ADMIN_USER_NAME:-admin}"
+ADMIN_USER_PASSWORD="${ADMIN_USER_PASSWORD:-password}"
+
 echo ""
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║     Keycloak Dev - Functional Test Suite                 ║${NC}"
@@ -329,11 +338,10 @@ if [ "$REALM_EXISTS" = true ]; then
     echo -n "  demo-user login... "
     USER_TOKEN=$(curl -s -X POST "http://localhost:8080/realms/demo-app/protocol/openid-connect/token" \
       -H "Content-Type: application/x-www-form-urlencoded" \
-      -d "client_id=demo-app-frontend" \
-      -d "grant_type=password" \
       -d "username=demo-user" \
-      -d "password=Demo@User123" \
-      2>/dev/null | jq -r '.access_token' 2>/dev/null || echo "null")
+      -d "password=${DEMO_USER_PASSWORD}" \
+      -d "grant_type=password" \
+      -d "client_id=demo-app-frontend" 2>/dev/null | jq -r '.access_token' 2>/dev/null || echo "null")
     
     if [ "$USER_TOKEN" != "null" ] && [ -n "$USER_TOKEN" ] && [ "$USER_TOKEN" != "" ]; then
         echo -e "${GREEN}✅ token obtained${NC}"
@@ -341,7 +349,7 @@ if [ "$REALM_EXISTS" = true ]; then
         USER_TOKEN_VALID=true
     else
         echo -e "${RED}❌ authentication failed${NC}"
-        echo "    Check that user 'demo-user' exists with password 'Demo@User123'"
+        echo "    Check that user ${DEMO_USER_NAME} exists with password from ${DEMO_USER_PASSWORD} (docker/.env)"
         ((FAILED++))
         USER_TOKEN_VALID=false
     fi
@@ -353,7 +361,7 @@ if [ "$REALM_EXISTS" = true ]; then
       -d "client_id=demo-app-frontend" \
       -d "grant_type=password" \
       -d "username=admin-user" \
-      -d "password=Admin@User123" \
+      -d "password=${ADMIN_USER_PASSWORD}" \
       2>/dev/null | jq -r '.access_token' 2>/dev/null || echo "null")
     
     if [ "$ADMIN_TOKEN" != "null" ] && [ -n "$ADMIN_TOKEN" ] && [ "$ADMIN_TOKEN" != "" ]; then
@@ -362,7 +370,7 @@ if [ "$REALM_EXISTS" = true ]; then
         ADMIN_TOKEN_VALID=true
     else
         echo -e "${RED}❌ authentication failed${NC}"
-        echo "    Check that user 'admin-user' exists with password 'Admin@User123'"
+        echo "    Check that user ${ADMIN_USER_NAME} exists with password from ${ADMIN_USER_PASSWORD} (docker/.env)"
         ((FAILED++))
         ADMIN_TOKEN_VALID=false
     fi
@@ -432,7 +440,7 @@ if [ "$USER_TOKEN_VALID" = true ]; then
     echo -n "  Login endpoint... "
     FASTAPI_TOKEN=$(curl -s -X POST http://localhost:8000/login \
       -H "Content-Type: application/json" \
-      -d '{"username": "demo-user", "password": "Demo@User123"}' \
+      -d "{\"username\": \"demo-user\", \"password\": \"${DEMO_USER_PASSWORD}\"}" \
       2>/dev/null | jq -r '.access_token' 2>/dev/null || echo "null")
     
     if [ "$FASTAPI_TOKEN" != "null" ] && [ -n "$FASTAPI_TOKEN" ]; then
@@ -480,7 +488,7 @@ if [ "$ADMIN_TOKEN_VALID" = true ]; then
     # Get admin token from FastAPI
     ADMIN_FASTAPI_TOKEN=$(curl -s -X POST http://localhost:8000/login \
       -H "Content-Type: application/json" \
-      -d '{"username": "admin-user", "password": "Admin@User123"}' \
+      -d "{\"username\": \"admin-user\", \"password\": \"${ADMIN_USER_PASSWORD}\"}" \
       2>/dev/null | jq -r '.access_token' 2>/dev/null || echo "null")
 
     echo -n "  User role check... "
@@ -591,14 +599,15 @@ if [ $FAILED -eq 0 ]; then
     echo ""
     echo -e "${BLUE}👤 Test Users:${NC}"
     echo ""
-    echo -e "  ${GREEN}demo-user${NC}  / Demo@User123  (role: user)"
-    echo -e "  ${GREEN}admin-user${NC} / Admin@User123 (role: admin)"
+    echo -e "  ${GREEN}demo-user${NC}  / \$DEMO_USER_PASSWORD (ver docker/.env)  (role: user)"
+    echo -e "  ${GREEN}admin-user${NC} / \$ADMIN_USER_PASSWORD (ver docker/.env) (role: admin)"
     echo ""
     echo -e "${BLUE}🧪 Quick Test:${NC}"
     echo ""
+    echo -e "  ${GREEN}source docker/.env${NC}"
     echo -e "  ${GREEN}curl -s -X POST http://localhost:8000/login \\${NC}"
     echo -e "    ${GREEN}-H 'Content-Type: application/json' \\${NC}"
-    echo -e "    ${GREEN}-d '{\"username\": \"demo-user\", \"password\": \"Demo@User123\"}' \\${NC}"
+    echo -e "    ${GREEN}-d '{\"username\": \"demo-user\", \"password\": \"'\$DEMO_USER_PASSWORD'\"}' \\${NC}"
     echo -e "    ${GREEN}| jq '.access_token'${NC}"
     echo ""
     exit 0

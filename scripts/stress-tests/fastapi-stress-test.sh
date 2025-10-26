@@ -10,13 +10,21 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Load environment variables from docker/.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/../../docker/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+fi
+
 # Configuration
 FASTAPI_URL="${FASTAPI_URL:-http://host.docker.internal:8000}"
 KEYCLOAK_URL="${KEYCLOAK_URL:-https://localhost:8443}"
 REALM="${REALM:-demo-app}"
 CLIENT_ID="${CLIENT_ID:-demo-app-frontend}"
 KEYCLOAK_USERNAME="${KEYCLOAK_USERNAME:-demo-user}"
-KEYCLOAK_PASSWORD="${KEYCLOAK_PASSWORD:-DemoUser123}"
+KEYCLOAK_PASSWORD="${KEYCLOAK_PASSWORD:-${DEMO_USER_PASSWORD:-DemoUser123}}"
 CONCURRENT_USERS="${CONCURRENT_USERS:-10}"
 REQUESTS_PER_USER="${REQUESTS_PER_USER:-100}"
 

@@ -12,12 +12,20 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Load environment variables from docker/.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/../../docker/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+fi
+
 # Configuration
 KEYCLOAK_URL="${KEYCLOAK_URL:-https://host.docker.internal:8443}"
 REALM="${REALM:-demo-app}"
 CLIENT_ID="${CLIENT_ID:-demo-app-frontend}"
-USERNAME="${USERNAME:-demo-user}"
-PASSWORD="${PASSWORD:-Demo@User123}"
+DEMO_USER_NAME="${DEMO_USER_NAME:-user}"
+DEMO_USER_PASSWORD="${DEMO_USER_PASSWORD:-${DEMO_USER_PASSWORD:-password}}"
 CONCURRENT_USERS="${CONCURRENT_USERS:-10}"
 REQUESTS_PER_USER="${REQUESTS_PER_USER:-100}"
 DURATION="${DURATION:-60}"
@@ -83,7 +91,7 @@ echo ""
 # Test 1: Token Endpoint
 echo -e "${YELLOW}Test 1: Token Generation Endpoint${NC}"
 TOKEN_URL="$KEYCLOAK_URL/realms/$REALM/protocol/openid-connect/token"
-TOKEN_DATA="username=$USERNAME&password=$PASSWORD&grant_type=password&client_id=$CLIENT_ID"
+TOKEN_DATA="username=$DEMO_USER_NAME&password=$DEMO_USER_PASSWORD&grant_type=password&client_id=$CLIENT_ID"
 
 run_ab_docker "$TOKEN_URL" "$RESULTS_DIR/token-endpoint.txt" "$TOKEN_DATA" "application/x-www-form-urlencoded"
 

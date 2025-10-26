@@ -5,6 +5,21 @@
 
 set -e
 
+# Load environment variables from docker/.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/../../docker/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+else
+    echo "⚠️  Warning: docker/.env not found, using default values"
+fi
+
+# Set credentials from environment or use defaults
+KC_ADMIN_USERNAME="${KC_ADMIN_USERNAME:-admin}"
+KC_ADMIN_PASSWORD="${KC_ADMIN_PASSWORD:-admin}"
+DEMO_USER_PASSWORD="${DEMO_USER_PASSWORD:-DemoUser123}"
+
 echo "🔑 Creating demo-user in Keycloak..."
 
 # Wait for Keycloak to be ready
@@ -28,8 +43,8 @@ echo "Getting admin access token..."
 ADMIN_TOKEN=$(curl -k -s -X POST "https://localhost:8443/realms/master/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=admin-cli" \
-  -d "username=keycloak_admin" \
-  -d "password=keycloak@pass123StrNG" \
+  -d "username=${KC_ADMIN_USERNAME}" \
+  -d "password=${KC_ADMIN_PASSWORD}" \
   -d "grant_type=password" | jq -r '.access_token')
 
 if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" == "null" ]; then
@@ -53,7 +68,7 @@ if [ -n "$USER_ID" ]; then
       -H "Content-Type: application/json" \
       -d '{
         "type": "password",
-        "value": "DemoUser123",
+        "value": "'"${DEMO_USER_PASSWORD}"'",
         "temporary": false
       }'
     
@@ -74,7 +89,7 @@ else
         "email": "demo@example.com",
         "credentials": [{
           "type": "password",
-          "value": "DemoUser123",
+          "value": "'"${DEMO_USER_PASSWORD}"'",
           "temporary": false
         }]
       }'
@@ -110,14 +125,14 @@ echo "🧪 Testing credentials..."
 TOKEN=$(curl -k -s -X POST "https://localhost:8443/realms/demo-app/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=demo-user" \
-  -d "password=DemoUser123" \
+  -d "password=${DEMO_USER_PASSWORD}" \
   -d "grant_type=password" \
   -d "client_id=demo-app-frontend" | jq -r '.access_token // empty')
 
 if [ -n "$TOKEN" ]; then
     echo "✅ Login successful! User demo-user is ready to use."
     echo "   Username: demo-user"
-    echo "   Password: DemoUser123"
+    echo "   Password: ${DEMO_USER_PASSWORD}"
 else
     echo "❌ Login failed - please check configuration"
     exit 1

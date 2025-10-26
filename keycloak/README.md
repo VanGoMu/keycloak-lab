@@ -77,26 +77,22 @@ cd keycloak
 
 ### Environment Variables (.env)
 
+> **Note:** Configure these values in `docker/.env` file
+
 ```bash
 # Admin Credentials
-KC_BOOTSTRAP_ADMIN_USERNAME=admin
-KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+KC_BOOTSTRAP_ADMIN_USERNAME=admin  # Change this in docker/.env
+KC_BOOTSTRAP_ADMIN_PASSWORD=admin  # Change this in docker/.env
 
 # Database
 KC_DB=postgres
 KC_DB_USERNAME=keycloak
-KC_DB_PASSWORD=<change_me>
+KC_DB_PASSWORD=<change_me>  # Configure in docker/.env
 POSTGRES_DB=keycloak
 
-# Network
-KC_HOSTNAME=localhost
-KC_HTTP_ENABLED=true  # Dev only - use HTTPS in production
-KC_PROXY=edge
-
-# Features
-KC_HEALTH_ENABLED=true
-KC_METRICS_ENABLED=true
-KC_FEATURES=token-exchange,admin-fine-grained-authz
+# Demo Users (for testing)
+DEMO_USER_PASSWORD=<change_me>  # Configure in docker/.env
+ADMIN_USER_PASSWORD=<change_me>  # Configure in docker/.env
 ```
 
 ### Execution Modes
@@ -326,8 +322,10 @@ docker compose up -d
 Pre-configured `demo-app` realm includes:
 
 **Users:**
-- demo-user / Demo@User123 (role: user)
-- admin-user / Admin@User123 (roles: admin, user)
+> **Note:** Passwords are configured in `docker/.env`
+
+- demo-user / Ver `DEMO_USER_PASSWORD` en `docker/.env` (role: user)
+- admin-user / Ver `ADMIN_USER_PASSWORD` en `docker/.env` (roles: admin, user)
 
 **Clients:**
 - demo-app-frontend (Public SPA client)
